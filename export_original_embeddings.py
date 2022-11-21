@@ -12,9 +12,9 @@ def export_embed(lang):
         model_url = "WillHeld/es-bert-xnli"
     model = AutoModelForSequenceClassification.from_pretrained(model_url)
     embeddings = model.base_model.embeddings.word_embeddings.weight
-    embeddings.detach().numpy()
+    out_np = embeddings.detach().numpy()
     out_df = pd.DataFrame(out_np)
-    out_df.to_csv(f"embedding_files/{lang}_embeddings.txt")
+    out_df.to_csv(f"embedding_files/{lang}_embeddings.csv")
 
 
 export_embed("en")
