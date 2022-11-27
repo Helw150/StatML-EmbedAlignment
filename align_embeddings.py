@@ -6,15 +6,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import SubsetRandomSampler, BatchSampler
 
+import cvxpy as cvx
+
 
 class Align:
     def __init__(self, src_emb, tgt_emb, lr, sinkhorn_steps=1000, reg=0.05):
         # center and normalize embeddings
-        self.src_emb = src_emb.float()
-        self.tgt_emb = tgt_emb.float()
+        self.src_emb = src_emb.float().cuda()
+        self.tgt_emb = tgt_emb.float().cuda()
 
         # initialize mapping layer
-        self.mapping = nn.Linear(src_emb.size(1), tgt_emb.size(1), bias=False)
+        self.mapping = nn.Linear(src_emb.size(1), tgt_emb.size(1), bias=False).cuda()
         self.sinkhorn_steps = sinkhorn_steps
         self.reg = reg
         self.lr = lr
@@ -51,21 +53,32 @@ class Align:
             x_t[idx_oracle] = x_t[idx_oracle] + step_size * mag_oracle
         return x_t, np.array(trace)
 
+    def convex_assignment(self, K_x, K_y):
+        P = cvx.Variable(shape=K_x.shape)
+        obj = cvx.Minimize(cvx.norm(cvx.matmul(K_x, P) - cvx.matmul(P, K_y), 2))
+        consts = [cvx.sum(P, axis=0) == 1, cvx.sum(P, axis=1) == 1]
+        prob = cvx.Problem(obj, consts)
+        prob.solve(verbose=True)
+        return P.value
+
     def initialize(self):
         self.mapping.weight.data = self.orthogonalize(self.mapping.weight.data)
 
         # todo
-        if False:
+        if True:
             print("Initializing Q.")
             # solve OT
             # currently hardcoded for src = ES, and tgt = EN
-            src_top_k = self.src_emb[1009:3509]
-            tgt_top_k = self.tgt_emb[1997:4497]
+            src_start = 1009
+            size = 2500
+            src_top_k = self.src_emb[src_start : src_start + size]
+            tgt_start = 1104
+            tgt_top_k = self.tgt_emb[tgt_start : tgt_start + size]
 
             K_src = torch.matmul(src_top_k, src_top_k.T)
             K_tgt = torch.matmul(tgt_top_k, tgt_top_k.T)
 
-            P = ...
+            P = self.convex_assignment(K_src.cpu().numpy(), K_tgt.cpu().numpy())
             a = torch.linalg.multi_dot([src_top_k.T, P, tgt_top_k])
             u, s, v = torch.svd(a)
             self.mapping.weight.data = torch.matmul(u, v)
@@ -77,8 +90,12 @@ class Align:
         # C = torch.sum(torch.pow(Y.view(Y.shape[0], 1, Y.shape[1]) - X.view(1, X.shape[0], X.shape[1]), 2), -1)
         K = torch.exp(-C / self.reg)
 
-        a = torch.full([Y.shape[0]], 1.0 / Y.shape[0], requires_grad=True).to("cpu")
-        b = torch.full([X.shape[0]], 1.0 / X.shape[0], requires_grad=True).to("cpu")
+        a = torch.full(
+            [Y.shape[0]], 1.0 / Y.shape[0], requires_grad=True
+        ).cuda()  # .to("cpu")
+        b = torch.full(
+            [X.shape[0]], 1.0 / X.shape[0], requires_grad=True
+        ).cuda()  # .to("cpu")
         lefts = [torch.ones_like(a)]
         rights = []
 
@@ -161,7 +178,7 @@ class Align:
         A = self.src_emb[pairs[:, 0]]
         B = self.tgt_emb[pairs[:, 1]]
         W = self.mapping.weight.data
-        M = B.transpose(0, 1).mm(A).cpu()
+        M = B.transpose(0, 1).mm(A).cuda()
         u, s, v = torch.svd(M)
         self.mapping.weight.data = torch.matmul(u, v)
 
@@ -193,9 +210,9 @@ def get_candidates(emb1, emb2, knn, max_rank=0):
         for i in range(0, query.shape[0], bs):
             distances = query[i : i + bs].mm(emb)
             best_distances, _ = distances.topk(knn, dim=1, largest=True, sorted=True)
-            all_distances.append(best_distances.mean(1).cpu())
+            all_distances.append(best_distances.mean(1).cuda())
         all_distances = torch.cat(all_distances)
-        return all_distances.detach().numpy()
+        return all_distances.detach()
 
     bs = 128
 
@@ -209,8 +226,8 @@ def get_candidates(emb1, emb2, knn, max_rank=0):
 
     # contextual dissimilarity measure
     # average distances to k nearest neighbors
-    average_dist1 = torch.from_numpy(get_nn_avg_dist(emb2, emb1, knn))
-    average_dist2 = torch.from_numpy(get_nn_avg_dist(emb1, emb2, knn))
+    average_dist1 = get_nn_avg_dist(emb2, emb1, knn)
+    average_dist2 = get_nn_avg_dist(emb1, emb2, knn)
     average_dist1 = average_dist1.type_as(emb1)
     average_dist2 = average_dist2.type_as(emb2)
 
@@ -226,15 +243,15 @@ def get_candidates(emb1, emb2, knn, max_rank=0):
         best_scores, best_targets = scores.topk(2, dim=1, largest=True, sorted=True)
 
         # update scores / potential targets
-        all_scores.append(best_scores.cpu())
-        all_targets.append(best_targets.cpu())
+        all_scores.append(best_scores.cuda())
+        all_targets.append(best_targets.cuda())
 
     all_scores = torch.cat(all_scores, 0)
     all_targets = torch.cat(all_targets, 0)
 
     all_pairs = torch.cat(
         [
-            torch.arange(0, all_targets.size(0)).long().unsqueeze(1),
+            torch.arange(0, all_targets.size(0)).long().unsqueeze(1).cuda(),
             all_targets[:, 0].unsqueeze(1),
         ],
         1,
@@ -277,10 +294,15 @@ en_embed = load_embeddings("embedding_files/en_embeddings.csv")
 print(en_embed.shape)
 es_embed = load_embeddings("embedding_files/es_embeddings.csv")
 print(es_embed.shape)
+print(abs(es_embed[1162] - en_embed[1109]).sum())
+print(abs(es_embed[1653] - en_embed[1134]).sum())
 
 aligned_es_embed = align_embeddings(es_embed, en_embed)
 # Sanity Check on the Embedding Matrix
 print(aligned_es_embed.shape)
-out_np = aligned_es_embed.numpy()
+out_np = aligned_es_embed.detach().cpu().numpy()
+print(abs(out_np[1162] - en_embed[1109].numpy()).sum())
+print(abs(out_np[1653] - en_embed[1134].numpy()).sum())
+
 out_df = pd.DataFrame(out_np)
 out_df.to_csv("embedding_files/aligned_es_embeddings.csv")

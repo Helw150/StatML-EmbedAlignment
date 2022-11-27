@@ -1,5 +1,6 @@
-import sys
 import datasets
+import sys
+import torch
 import numpy as np
 import pandas as pd
 from datasets import load_dataset
@@ -25,19 +26,19 @@ def load_embeddings(filename):
     df = pd.read_csv(filename, sep=",")
     # Remove Column Numbers
     np_array = df.values[:, 1:]
-    return torch.tensor(np_array)
+    return torch.nn.Parameter(torch.tensor(np_array).float())
 
 
-model = sys.argv[1]
+model_type = sys.argv[1]
 embeddings = sys.argv[2]
 lang = sys.argv[3]
 
-if model == "mono":
+if model_type == "mono":
     if lang == "en":
         model_url = "WillHeld/en-bert-xnli"
     else:
         model_url = "WillHeld/es-bert-xnli"
-elif model == "multi":
+elif model_type == "multi":
     model_url = "WillHeld/multi-bert-xnli"
 else:
     model_url = "WillHeld/en-bert-xnli"
@@ -63,10 +64,12 @@ config = AutoConfig.from_pretrained(
 
 
 model = AutoModelForSequenceClassification.from_pretrained(model_url)
-if embeddings == "align" and lang == "es" and model == "align":
+print(embeddings, model_type, lang)
+if embeddings == "align" and lang == "es" and model_type == "align":
+    print("test")
     tokenizer = AutoTokenizer.from_pretrained("WillHeld/es-bert-xnli")
     model.base_model.embeddings.word_embeddings.weight = load_embeddings(
-        "embedding_files/aligned_es_embeddings.csv"
+        "embedding_files/es_embeddings.csv"
     )
 else:
     tokenizer = AutoTokenizer.from_pretrained(model_url)
