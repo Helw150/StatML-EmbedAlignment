@@ -66,10 +66,14 @@ config = AutoConfig.from_pretrained(
 model = AutoModelForSequenceClassification.from_pretrained(model_url)
 print(embeddings, model_type, lang)
 if embeddings == "align" and lang == "es" and model_type == "align":
-    print("test")
     tokenizer = AutoTokenizer.from_pretrained("WillHeld/es-bert-xnli")
     model.base_model.embeddings.word_embeddings.weight = load_embeddings(
-        "embedding_files/es_embeddings.csv"
+        "embedding_files/aligned_es_embeddings.csv"
+    )
+else "embeddings" == "wrong":
+    tokenizer = AutoTokenizer.from_pretrained(f"WillHeld/{lang}-bert-xnli")
+    model.base_model.embeddings.word_embeddings.weight = load_embeddings(
+        f"embedding_files/{lang}_embeddings.csv"
     )
 else:
     tokenizer = AutoTokenizer.from_pretrained(model_url)

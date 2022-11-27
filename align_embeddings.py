@@ -59,7 +59,7 @@ class Align:
         consts = [cvx.sum(P, axis=0) == 1, cvx.sum(P, axis=1) == 1]
         prob = cvx.Problem(obj, consts)
         prob.solve(verbose=True)
-        return P.value
+        return torch.tensor(P.value).float().cuda()
 
     def initialize(self):
         self.mapping.weight.data = self.orthogonalize(self.mapping.weight.data)
@@ -69,11 +69,23 @@ class Align:
             print("Initializing Q.")
             # solve OT
             # currently hardcoded for src = ES, and tgt = EN
-            src_start = 1009
-            size = 2500
-            src_top_k = self.src_emb[src_start : src_start + size]
-            tgt_start = 1104
-            tgt_top_k = self.tgt_emb[tgt_start : tgt_start + size]
+            size = 100
+            src_top_k = self.src_emb[
+                [
+                    int(index)
+                    for index in open(
+                        "most_common_words/spanish_index.txt", "r"
+                    ).readlines()[:size]
+                ]
+            ]
+            tgt_top_k = self.tgt_emb[
+                [
+                    int(index)
+                    for index in open(
+                        "most_common_words/english_index.txt", "r"
+                    ).readlines()[:size]
+                ]
+            ]
 
             K_src = torch.matmul(src_top_k, src_top_k.T)
             K_tgt = torch.matmul(tgt_top_k, tgt_top_k.T)

@@ -1,7 +1,11 @@
+export CUDA_VISIBLE_DEVICES=4
 pip install -r requirements.txt
 
 # Export Embeddings From Pretrained Models
 python export_original_embeddings.py
+
+# Tokenize Most Common Words
+python common_word_indices.py
 
 # Align Spanish Embeddings onto English Embeddings
 python align_embeddings.py
