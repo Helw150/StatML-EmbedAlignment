@@ -52,6 +52,8 @@ class Align:
         return x_t, np.array(trace)
 
     def initialize(self):
+        self.mapping.weight.data = self.orthogonalize(self.mapping.weight.data)
+
         # todo
         if False:
             print('Initializing Q.')
