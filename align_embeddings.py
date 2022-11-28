@@ -174,7 +174,7 @@ class Align:
             self.train_step(batch_size, num_steps)
 
             # double batch size for next step
-            batch_size = 2 * batch_size
+            batch_size = min(2 * batch_size, min(len(self.src_emb), len(self.tgt_emb)))
             num_steps = num_steps // 2
 
     def retrieve(self):
@@ -295,10 +295,17 @@ def load_embeddings(filename):
 
 
 def align_embeddings(src_emb, tgt_emb):
+    # Center and Normalizes
+    src_mean = torch.mean(src_emb, axis=0)
+    tgt_mean = torch.mean(tgt_emb, axis=0)
+    src_emb = (src_emb - src_mean) + tgt_mean
+    src_scale = torch.mean(torch.linalg.norm(src_emb, dim=1, ord=2))
+    tgt_scale = torch.mean(torch.linalg.norm(tgt_emb, dim=1, ord=2))
+    src_emb = (src_emb / src_scale) * tgt_scale
     trainer = Align(src_emb, tgt_emb, lr=1e-3)
     trainer.train()
     trainer.refine()
-    aligned_src_emb = trainer.mapping(trainer.src_emb)
+    aligned_src_emb = trainer.mapping(src_emb.float().cuda())
     return aligned_src_emb
 
 

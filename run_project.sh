@@ -15,9 +15,9 @@ python eval_xnli.py "mono" "orig" "en"
 # Spanish Upper Bound Supervised
 python eval_xnli.py "mono" "orig" "es"
 # Spanish Lower Bound (Zero-Shot Monolingual English -> Spanish)
-python eval_xnli.py "wrong" "orig" "es"
+python eval_xnli.py "wrong" "wrong" "es"
 # Multilingual Spanish Baseline (Compare to Our Proposed Method)
 python eval_xnli.py "multi" "orig" "es"
 # Aligned Model (English MHA Weights, Spanish Aligned Embedding Matrix)
-python eval_xnli.py "align" "align" "es"
+python eval_xnli.py "align" "orig" "es"
 

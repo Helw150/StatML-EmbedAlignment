@@ -70,7 +70,7 @@ if embeddings == "align" and lang == "es" and model_type == "align":
     model.base_model.embeddings.word_embeddings.weight = load_embeddings(
         "embedding_files/aligned_es_embeddings.csv"
     )
-elif "embeddings" == "wrong":
+elif embeddings == "wrong":
     tokenizer = AutoTokenizer.from_pretrained(f"WillHeld/{lang}-bert-xnli")
     model.base_model.embeddings.word_embeddings.weight = load_embeddings(
         f"embedding_files/{lang}_embeddings.csv"

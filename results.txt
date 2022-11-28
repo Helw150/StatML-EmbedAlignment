@@ -18,12 +18,12 @@ Spanish BERT Finetuned
 
 Unaligned Spanish Embeddings in English Model
 ***** eval metrics *****
-  eval_accuracy           =     0.4285
-  eval_loss               =     1.5908
-  eval_runtime            = 0:00:07.68
+  eval_accuracy           =     0.3361
+  eval_loss               =     1.8253
+  eval_runtime            = 0:00:07.99
   eval_samples            =       2490
-  eval_samples_per_second =    323.875
-  eval_steps_per_second   =     40.582
+  eval_samples_per_second =    311.631
+  eval_steps_per_second   =     39.048
 
 Multilingual Zero-Shot Spanish
 ***** eval metrics *****
@@ -35,3 +35,10 @@ Multilingual Zero-Shot Spanish
   eval_steps_per_second   =     40.461
 
 Aligned Spanish Embeddings in English Model
+***** eval metrics *****
+  eval_accuracy           =     0.4692
+  eval_loss               =     1.5908
+  eval_runtime            = 0:00:07.68
+  eval_samples            =       2490
+  eval_samples_per_second =    323.875
+  eval_steps_per_second   =     40.582
